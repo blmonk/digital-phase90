@@ -102,7 +102,7 @@ int main() {
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
     phaser.Init(48000.0f);
-    phaser.setRate(0.2f);
+    phaser.setRate(0.1f);
 
     i2s_program_start_synched(pio0, &i2s_config_default, dma_i2s_in_handler, &i2s);
 

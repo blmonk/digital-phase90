@@ -84,23 +84,43 @@ public:
         float wc = MIN_W + lfoValue * (MAX_W - MIN_W);
 
 
-        float a1 = 2.0f - wc/sampleRate;
-        float a2 = 2.0f + wc/sampleRate;
+        // float a1 = 2.0f - wc/sampleRate;
+        // float a2 = 2.0f + wc/sampleRate;
 
-        float c[5]; // temporary array to hold coeffs resulting from 4 allpass filters
+        // float c[5]; // temporary array to hold coeffs resulting from 4 allpass filters
+        // c[0] = a1*a1*a1*a1;
+        // c[1] = -4.0f * a1*a1*a1 * a2;
+        // c[2] = 6.0f * a1*a1 * a2*a2;
+        // c[3] = -4.0f * a1 * a2*a2*a2;
+        // c[4] = a2*a2*a2*a2;
+
+
+        float a1 = (2.0f - wc/sampleRate) / (2.0f + wc/sampleRate);
+
+        float c[4]; // temporary array to hold coeffs resulting from 4 allpass filters
         c[0] = a1*a1*a1*a1;
-        c[1] = -4.0f * a1*a1*a1 * a2;
-        c[2] = 6.0f * a1*a1 * a2*a2;
-        c[3] = -4.0f * a1 * a2*a2*a2;
-        c[4] = a2*a2*a2*a2;
+        c[1] = -4.0f * a1*a1*a1;
+        c[2] = 6.0f * a1*a1;
+        c[3] = -4.0f * a1;
+
 
         // IO relation implementation:
         // input x is x[n] and x_delay[0] is x[n-1], etc.
         float y;
+
         y = 
-            (1.0f / c[4]) * 
-            (0.5 * ((c[0]+c[4])*x + (c[1]+c[3])*x_delay[0] + (2*c[2])*x_delay[1] + (c[3]+c[1])*x_delay[2] + (c[4]+c[0])*x_delay[3]) -
-            (c[3]*y_delay[0] + c[2]*y_delay[1] + c[1]*y_delay[2] + c[0]*y_delay[3]));
+            (
+            c[0]*x + 
+            c[1]*x_delay[0] + 
+            c[2]*x_delay[1] + 
+            c[3]*x_delay[2] + 
+            x_delay[3]
+            )
+            - (
+            c[3]*y_delay[0] + 
+            c[2]*y_delay[1] + 
+            c[1]*y_delay[2] + 
+            c[0]*y_delay[3]);
 
 
         // update delayed samples
@@ -114,9 +134,11 @@ public:
         y_delay[1] = y_delay[0];
         y_delay[0] = y;
         
-        if (y > 1) return 1.0;
-        else if (y < -1) return -1.0;
-        else return y;
+        // if (y > 1) return 1.0;
+        // else if (y < -1) return -1.0;
+        // else return y;
+
+        return (0.5*x + 0.5*y);
     }
 
 private:
