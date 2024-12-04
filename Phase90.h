@@ -1,45 +1,37 @@
 #ifndef PHASE90_H
 #define PHASE90_H
 
-#define MIN_W 2030
 // #define MIN_W 1500
-#define MAX_W 10150
 // #define MAX_W 15000
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 #include <cmath>
 
 #include "LFO_LUT.h"
 
-// Triangle function with period 2pi and range [-1,1]
-float triangle(float x) {
-    // Keep the argument within the range [0, 2*pi]
-    float value = fmodf(x, 2 * M_PI);
-    if (value < M_PI) {
-        return 2 * (value / M_PI) - 1;  // Rising edge
-    } else {
-        return 1 - 2 * ((value - M_PI) / M_PI);  // Falling edge
-    }
-}
+// // Triangle function with period 2pi and range [-1,1]
+// float triangle(float x) {
+//     // Keep the argument within the range [0, 2*pi]
+//     float value = fmodf(x, 2 * M_PI);
+//     if (value < M_PI) {
+//         return 2 * (value / M_PI) - 1;  // Rising edge
+//     } else {
+//         return 1 - 2 * ((value - M_PI) / M_PI);  // Falling edge
+//     }
+// }
 
-// Linear interpolation function
 float linear_interpolate(float x0, float y0, float x1, float y1, float x) {
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
 }
 
 // Function to get the value from the phase using the lookup table
 float lut_waveform(float phase) {
-    // Map the phase to an index in the lookup table (scaled to 0-225)
+    // Map the phase to an index in the lookup table
     float index = (phase / (2 * M_PI)) * 226;
 
-    // Find the two indices for linear interpolation
+    // Find two indices for interpolation
     int index0 = (int)index;
     int index1 = index0 + 1;
 
-    // Ensure that the index is within bounds
     if (index1 >= 226) index1 = 0;  // Wrap around for periodicity
 
     // Perform linear interpolation
@@ -53,13 +45,13 @@ float lut_waveform(float phase) {
 
 class LFO {
 public:
+    void Init(float sampleRate) {
+        this->sampleRate = sampleRate;
+    }
+
     void setRate(float rate) {
         currentRate = rate;
         updateIncrement();
-    }
-
-    void setSampleRate(float sampleRate) {
-        this->sampleRate = sampleRate;
     }
 
     void updateIncrement() {
@@ -72,7 +64,7 @@ public:
             phase -= 2.0f * M_PI; // Wrap phase
         }
         // return (triangle(phase) + 1.0f) / 2.0f; // Range: [0, 1]
-        return (lut_waveform(phase)); // Range: [0, 1]
+        return (lut_waveform(phase)); 
     }
 
 private:
@@ -94,9 +86,7 @@ public:
 
     void Init(float sampleRate) {
         this->sampleRate = sampleRate;
-        lfo.setSampleRate(sampleRate);
-        max_w_inv = 1.0f / MAX_W;
-        min_w_inv = 1.0f / MIN_W;
+        lfo.Init(sampleRate);
     }
 
     void setRate(float potValue) {
@@ -108,14 +98,11 @@ public:
     float processSample(float x) {
         float wc = lfo.getNextSample();
         // float lfoValue = lfo.getNextSample();
-        // // modulate 1/wc by lfo, not wc since R is modulated in real circuit.
-        // float w_inv = min_w_inv + lfoValue * (max_w_inv - min_w_inv);
-        // // float wc = 1.0f / w_inv;
         // float wc = MIN_W + lfoValue * (MAX_W - MIN_W);
 
         float a1 = (2.0f - wc/sampleRate) / (2.0f + wc/sampleRate);
 
-        float c[4]; // temporary array to hold coeffs resulting from 4 allpass filters
+        float c[4]; // Temporary array to hold coeffs resulting from 4 allpass filters
         c[0] = a1*a1*a1*a1;
         c[1] = -4.0f * a1*a1*a1;
         c[2] = 6.0f * a1*a1;
