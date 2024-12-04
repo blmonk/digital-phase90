@@ -12,6 +12,8 @@
 
 #include <cmath>
 
+#include "LFO_LUT.h"
+
 // Triangle function with period 2pi and range [-1,1]
 float triangle(float x) {
     // Keep the argument within the range [0, 2*pi]
@@ -21,6 +23,32 @@ float triangle(float x) {
     } else {
         return 1 - 2 * ((value - M_PI) / M_PI);  // Falling edge
     }
+}
+
+// Linear interpolation function
+float linear_interpolate(float x0, float y0, float x1, float y1, float x) {
+    return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+}
+
+// Function to get the value from the phase using the lookup table
+float lut_waveform(float phase) {
+    // Map the phase to an index in the lookup table (scaled to 0-225)
+    float index = (phase / (2 * M_PI)) * 226;
+
+    // Find the two indices for linear interpolation
+    int index0 = (int)index;
+    int index1 = index0 + 1;
+
+    // Ensure that the index is within bounds
+    if (index1 >= 226) index1 = 0;  // Wrap around for periodicity
+
+    // Perform linear interpolation
+    float x0 = index0;
+    float y0 = lfo_lut[index0];
+    float x1 = index1;
+    float y1 = lfo_lut[index1];
+
+    return linear_interpolate(x0, y0, x1, y1, index);
 }
 
 class LFO {
@@ -43,7 +71,8 @@ public:
         if (phase >= 2.0f * M_PI) {
             phase -= 2.0f * M_PI; // Wrap phase
         }
-        return (triangle(phase) + 1.0f) / 2.0f; // Range: [0, 1]
+        // return (triangle(phase) + 1.0f) / 2.0f; // Range: [0, 1]
+        return (lut_waveform(phase)); // Range: [0, 1]
     }
 
 private:
@@ -77,23 +106,12 @@ public:
     }
 
     float processSample(float x) {
-        float lfoValue = lfo.getNextSample();
-        // modulate 1/wc by lfo, not wc since R is modulated in real circuit.
-        float w_inv = min_w_inv + lfoValue * (max_w_inv - min_w_inv);
-        // float wc = 1.0f / w_inv;
-        float wc = MIN_W + lfoValue * (MAX_W - MIN_W);
-
-
-        // float a1 = 2.0f - wc/sampleRate;
-        // float a2 = 2.0f + wc/sampleRate;
-
-        // float c[5]; // temporary array to hold coeffs resulting from 4 allpass filters
-        // c[0] = a1*a1*a1*a1;
-        // c[1] = -4.0f * a1*a1*a1 * a2;
-        // c[2] = 6.0f * a1*a1 * a2*a2;
-        // c[3] = -4.0f * a1 * a2*a2*a2;
-        // c[4] = a2*a2*a2*a2;
-
+        float wc = lfo.getNextSample();
+        // float lfoValue = lfo.getNextSample();
+        // // modulate 1/wc by lfo, not wc since R is modulated in real circuit.
+        // float w_inv = min_w_inv + lfoValue * (max_w_inv - min_w_inv);
+        // // float wc = 1.0f / w_inv;
+        // float wc = MIN_W + lfoValue * (MAX_W - MIN_W);
 
         float a1 = (2.0f - wc/sampleRate) / (2.0f + wc/sampleRate);
 
@@ -102,7 +120,6 @@ public:
         c[1] = -4.0f * a1*a1*a1;
         c[2] = 6.0f * a1*a1;
         c[3] = -4.0f * a1;
-
 
         // IO relation implementation:
         // input x is x[n] and x_delay[0] is x[n-1], etc.
